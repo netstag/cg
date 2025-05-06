@@ -173,6 +173,24 @@ void BresenhamsDashed(int x1 , int y1 , int x2 , int y2){
  glEnd();
 }
 
+void BresenhamsSquareWave(){
+    // Bresenhams(50 , 50 , 50 , 200);
+    // Bresenhams(50 , 200 , 150 , 200);
+    // Bresenhams(150 , 200 , 150 , 50);
+    // Bresenhams(150 , 50 , 250 , 50);
+    // Bresenhams(250 , 50 , 250 , 200);
+    // Bresenhams(250 , 200 , 350 , 200);
+    // Bresenhams(350 , 200 , 350 , 50);
+   Bresenhams(50,50 , 100 , 150);
+   Bresenhams(100 , 150 , 150 , 50);
+   Bresenhams(150 , 50 , 200 , 150);
+   Bresenhams(200 , 150 , 250 , 50);
+   Bresenhams(250 , 50 , 300 , 150);
+   Bresenhams(300 , 150 , 350 , 50);
+   
+   
+}
+
 
 void Display(){
    glClear(GL_COLOR_BUFFER_BIT);
@@ -196,7 +214,11 @@ void Menu(int item){
     if(item==5){
         exit(0);
     }
-
+    if(item == 6){ 
+        BresenhamsSquareWave();
+        glFlush();
+       return ;
+    };
     int x1 , y1 , x2 , y2;
 
     cout<<"x1=";
@@ -218,6 +240,7 @@ void Menu(int item){
     if(item==1) Bresenhams(x1,y1,x2,y2);
     else if(item==2) BresenhamsDotted(x1,y1,x2,y2);
     else if(item==3) BresenhamsDashed(x1,y1,x2,y2);
+    
     else cout<<"Invalid option";
     glFlush();
    
@@ -229,6 +252,7 @@ void menuInit(){
    glutAddMenuEntry("Simple Line",1);
    glutAddMenuEntry("Dotted Line",2);
    glutAddMenuEntry("Dashed Line",3);
+   glutAddMenuEntry("Square Wave" , 6);
    glutAddMenuEntry("Exit",5);
    glutAttachMenu(GLUT_RIGHT_BUTTON);
 
@@ -236,7 +260,7 @@ void menuInit(){
 
 int main(int v , char** c){
     glutInit(&v , c);
-    glutInitWindowSize(500,500);
+    glutInitWindowSize(w,h);
     glutCreateWindow("Bresenhams");
     glutInitDisplayMode(GLUT_RGB | GLUT_SINGLE);
     glutDisplayFunc(Display);
