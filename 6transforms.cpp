@@ -1,283 +1,252 @@
-#include<iostream>
+#include <iostream>
+#include <GL/glut.h>
+#include <cmath>
 using namespace std;
-#include<GL/glut.h>
-#include<math.h>
-#define w 1080
-#define h 720
 
-void axes(){
-    for(int i=-w ; i < w ; i++){
-        glBegin(GL_POINTS);
-            glVertex2i(i,0);
-            glVertex2i(0,i);
-        glEnd();
+#define w 640
+#define h 480
+
+// Defining matrices for a square (4 vertices)
+const int N = 4;
+float A[N][3] = {
+    {10, 10, 1},    // Bottom-left
+    {100, 10, 1},   // Bottom-right
+    {100, 100, 1},  // Top-right
+    {10, 100, 1}    // Top-left
+};
+float B[3][3]; // Transformation matrix remains 3x3 for 2D homogeneous transformations
+float C[N][3]; // Result matrix for transformed vertices
+float tx, ty, sx, sy, t;
+
+// Initialize OpenGL settings
+void myInit() {
+    glClearColor(1.0f, 1.0f, 1.0f, 1.0f); // White background
+    glColor3f(0.0,0.0,0.0);
+    glPointSize(4.0f);
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    gluOrtho2D(-w/2, w/2, -h/2, h/2);
+}
+
+// Initialize a 3x3 matrix to identity
+void matrixInit(float a[][3]) {
+    for (int i = 0; i < 3; i++) {
+        for (int j = 0; j < 3; j++) {
+            a[i][j] = (i == j) ? 1.0f : 0.0f;
+        }
     }
 }
 
-void Bresenham(int x1 , int y1 , int x2 , int y2){
+// Clear a matrix to zero (Nx3 for vertices, 3x3 for transformation)
+void matrixClear(float a[][3], int rows) {
+    for (int i = 0; i < rows; i++) {
+        for (int j = 0; j < 3; j++) {
+            a[i][j] = 0.0f;
+        }
+    }
+}
+
+// Function to multiply matrices (Nx3 * 3x3 = Nx3)
+void multiply(float a[][3], float b[][3], float c[][3]) {
+    for (int i = 0; i < N; i++) {
+        for (int j = 0; j < 3; j++) {
+            for (int k = 0; k < 3; k++) {
+                c[i][j] += a[i][k] * b[j][k];
+            }
+        }
+    }
+}
+
+// Draw X and Y axes
+void drawAxes() {
+    glColor3f(0.5f, 0.5f, 0.5f); // Gray color for axes
     glBegin(GL_LINES);
-        glVertex2f(x1, y1);
-        glVertex2f(x2, y2);
+    // X-axis
+    glVertex2i(-w/2, 0);
+    glVertex2i(w/2, 0);
+    // Y-axis
+    glVertex2i(0, -h/2);
+    glVertex2i(0, h/2);
     glEnd();
 }
 
-void Translate(int x1 , int y1 , int x2 , int y2 , int tx , int ty){
-    int p1 , q1 , p2 , q2;
-    p1 = x1+tx;
-    q1 = y1+ty;
-    p2 = x2 + tx;
-    q2 = y2 + ty;
-    Bresenham(p1 , q1 , p2 , q2);
-}
-
-void Scaling(int x1 , int y1 , int x2 , int y2,float sx , float sy){
-    int p1,q1,p2,q2;
-    p1 = x1 * sx;
-    q1 = y1 * sy;
-    p2 = x2 * sx;
-    q2 = y2 * sy;
-    Bresenham(p1,q1,p2,q2);
-}
-
-void Rotation(int x1 , int y1 , int x2 , int y2 , int angle ){
-    int p1 , q1 , p2 , q2;
-    float angler;
-    angler = (3.14*angle)/180;
-    p1 = x1*cos(angler) + y1*sin(angler);
-    q1 = x1*sin(-angler) + y1*cos(angler);
-    p2 = x2*cos(angler) + y2*sin(angler);
-    q2 = x2*sin(-angler) + y2*cos(angler);
-    Bresenham(p1,q1,p2,q2);
-}
-
-void RotationPt(int x1, int y1, int x2, int y2, int X, int Y, int angle) {
-    // Step 1: Translate line so that (X,Y) becomes the origin
-    int tx1, ty1, tx2, ty2;
-    tx1 = x1 - X;
-    ty1 = y1 - Y;
-    tx2 = x2 - X;
-    ty2 = y2 - Y;
-    
-    // Step 2: Rotate around origin
-    float angler = (3.14 * angle) / 180;
-    int rx1, ry1, rx2, ry2;
-    
-    rx1 = tx1 * cos(angler) - ty1 * sin(angler);
-    ry1 = tx1 * sin(angler) + ty1 * cos(angler);
-    rx2 = tx2 * cos(angler) - ty2 * sin(angler);
-    ry2 = tx2 * sin(angler) + ty2 * cos(angler);
-    
-    // Step 3: Translate back so that origin moves back to (X,Y)
-    int fx1, fy1, fx2, fy2;
-    fx1 = rx1 + X;
-    fy1 = ry1 + Y;
-    fx2 = rx2 + X;
-    fy2 = ry2 + Y;
-    
-    // Draw the rotated line
-    Bresenham(fx1, fy1, fx2, fy2);
-}
-void ScalingPt(int x1, int y1, int x2, int y2, int X, int Y, float sx, float sy) {
-    // Step 1: Translate line so that (X,Y) becomes the origin
-    int tx1, ty1, tx2, ty2;
-    tx1 = x1 - X;
-    ty1 = y1 - Y;
-    tx2 = x2 - X;
-    ty2 = y2 - Y;
-    
-    // Step 2: Apply scaling
-    int sx1, sy1, sx2, sy2;
-    sx1 = tx1 * sx;
-    sy1 = ty1 * sy;
-    sx2 = tx2 * sx;
-    sy2 = ty2 * sy;
-    
-    // Step 3: Translate back so that origin moves back to (X,Y)
-    int fx1, fy1, fx2, fy2;
-    fx1 = sx1 + X;
-    fy1 = sy1 + Y;
-    fx2 = sx2 + X;
-    fy2 = sy2 + Y;
-    
-    // Draw the scaled line
-    Bresenham(fx1, fy1, fx2, fy2);
-}
-
-void Reflection(int x1 , int y1 , int x2 , int y2 ,int X , int Y , int wrt){
-    int tx1 , ty1 , tx2 , ty2;
-    tx1 = x1 - X ;
-    ty1 = y1 - Y;
-    tx2 = x2 - X;
-    ty2 = y2 - Y;
-    
-    int p1 , q1 , p2 , q2;
-    int fx1, fy1, fx2, fy2;
-
-    if(wrt == 1){ // x-axis
-        p1 = tx1;
-        q1 = -ty1;
-        p2 = tx2;
-        q2 = -ty2;
+// Plot the figure with object matrix a
+void plotFigure(float a[][3], bool isTransformed) {
+    glColor3f(0.0f, 0.0f, isTransformed ? 1.0f : 0.0f); // Blue for transformed, green for original
+    glBegin(GL_LINE_LOOP);
+    for (int i = 0; i < N; i++) {
+        glVertex2i(a[i][0], a[i][1]);
     }
-    else if(wrt == 2){ // y-axis
-        p1 = -tx1;
-        q1 = ty1;
-        p2 = -tx2;
-        q2 = ty2;
-    } else {
-        return; // Invalid option
-    }
-
-    fx1 = p1 + X;
-    fy1 = q1 + Y;
-    fx2 = p2 + X;
-    fy2 = q2 + Y;
-
-    Bresenham(fx1, fy1, fx2, fy2);
+    glEnd();
 }
 
+// Translation transformation
+void translate() {
+    cout << "Enter translation tx and ty: ";
+    cin >> tx >> ty;
 
-void Shear(int x1, int y1, int x2, int y2, float shx, float shy) {
-    int sx1, sy1, sx2, sy2;
+    matrixInit(B);
+    B[0][2] = tx;
+    B[1][2] = ty;
 
-    // Apply shearing
-    sx1 = x1 + shx * y1;
-    sy1 = y1 + shy * x1;
-    sx2 = x2 + shx * y2;
-    sy2 = y2 + shy * x2;
-
-    // Draw the sheared line
-    Bresenham(sx1, sy1, sx2, sy2);
-}
-
-
-void Display(){
     glClear(GL_COLOR_BUFFER_BIT);
-    glColor3f(0,0,0);
-    axes();
-    glLineWidth(5.0); 
-    Bresenham(-100,100,100,100);
-    Bresenham(100,100,100,-100);
-    Bresenham(100,-100,-100,-100);
-    Bresenham(-100,-100,-100,100);
+    drawAxes();
+    plotFigure(A, false); // Original square in green
+    matrixClear(C, N);
+    multiply(A, B, C);
+    plotFigure(C, true); // Transformed square in blue
     glFlush();
 }
 
-void menu(int item){
-    if(item == 1 ){
-        int tx ,ty ;
-        cout<<"Tx:"; cin>>tx;
-        cout<<"Ty:"; cin>>ty;
-        Translate(-100,100,100,100,tx , ty);
-        Translate(100,100,100,-100,tx , ty);
-        Translate(100,-100,-100,-100,tx , ty);
-        Translate(-100,-100,-100,100,tx , ty);
-    }
-    if(item == 2){
-        int sx ,sy ;
-        cout<<"Sx:"; cin>>sx;
-        cout<<"Sy:"; cin>>sy;
-        Scaling(-100,100,100,100,sx, sy);
-        Scaling(100,100,100,-100,sx, sy);
-        Scaling(100,-100,-100,-100,sx, sy);
-        Scaling(-100,-100,-100,100,sx, sy);
-    }
-    if(item == 8){
-        int angle;
-        cout<<"Angle:"; cin>>angle;
-        Rotation(-100,100,100,100,angle);
-        Rotation(100,100,100,-100,angle);
-        Rotation(100,-100,-100,-100,angle);
-        Rotation(-100,-100,-100,100,angle);
-    }
-    if(item == 3) {
-        int X, Y, angle;
-        cout << "Enter center of rotation (X Y): ";
-        cin >> X >> Y;
-        cout << "Enter rotation angle in degrees: ";
-        cin >> angle;
-        
-        // Rotate each side of the square around (X,Y)
-        RotationPt(-100, 100, 100, 100, X, Y, angle);  // Top edge
-        RotationPt(100, 100, 100, -100, X, Y, angle);  // Right edge
-        RotationPt(100, -100, -100, -100, X, Y, angle); // Bottom edge
-        RotationPt(-100, -100, -100, 100, X, Y, angle); // Left edge
-    }
-    if(item == 4){
-        int X, Y;
-        float sx, sy;
-        cout << "Enter fixed point for scaling (X Y): ";
-        cin >> X >> Y;
-        cout << "Enter scaling factors (sx sy): ";
-        cin >> sx >> sy;
-        
-        // Scale each side of the square with respect to (X,Y)
-        ScalingPt(-100, 100, 100, 100, X, Y, sx, sy);   // Top edge
-        ScalingPt(100, 100, 100, -100, X, Y, sx, sy);   // Right edge
-        ScalingPt(100, -100, -100, -100, X, Y, sx, sy); // Bottom edge
-        ScalingPt(-100, -100, -100, 100, X, Y, sx, sy); // Left edge
-    }
-    if(item == 5){
-        int wrt ,X , Y ;
-        cout << "Enter fixed point for Reflection (X Y): ";
-        cin >> X >> Y;
-        cout<<endl;
-        cout<<"Reflection wrt to x-axis[1] or y-axis[2]:"; cin>>wrt;
-        cout<<endl;
-        Reflection(-100,100,100,100,X,Y,wrt);
-        Reflection(100,100,100,-100,X,Y,wrt);
-        Reflection(100,-100,-100,-100,X,Y,wrt);
-        Reflection(-100,-100,-100,100,X,Y,wrt);
+// Scaling transformation
+void scale() {
+    cout << "Enter scaling factors sx and sy: ";
+    cin >> sx >> sy;
 
+    matrixInit(B);
+    B[0][0] = sx;
+    B[1][1] = sy;
+
+    glClear(GL_COLOR_BUFFER_BIT);
+    drawAxes();
+    plotFigure(A, false); // Original square in green
+    matrixClear(C, N);
+    multiply(A, B, C);
+    plotFigure(C, true); // Transformed square in blue
+    glFlush();
+}
+
+// Rotation transformation
+void rotate() {
+    cout << "Enter rotation angle in degrees: ";
+    cin >> t;
+
+    t = (3.14159f * t) / 180.0f; // Convert to radians
+    matrixInit(B);
+    B[0][0] = cos(t);
+    B[0][1] = -sin(t);
+    B[1][0] = sin(t);
+    B[1][1] = cos(t);
+
+    glClear(GL_COLOR_BUFFER_BIT);
+    drawAxes();
+    plotFigure(A, false); // Original square in green
+    matrixClear(C, N);
+    multiply(A, B, C);
+    plotFigure(C, true); // Transformed square in blue
+    glFlush();
+}
+
+// Shear transformation
+void shear() {
+    cout << "Enter shear factors shx (along x) and shy (along y): ";
+    float shx, shy;
+    cin >> shx >> shy;
+
+    matrixInit(B);
+    B[0][1] = shx; // Shear along x
+    B[1][0] = shy; // Shear along y
+
+    glClear(GL_COLOR_BUFFER_BIT);
+    drawAxes();
+    plotFigure(A, false); // Original square in green
+    matrixClear(C, N);
+    multiply(A, B, C);
+    plotFigure(C, true); // Transformed square in blue
+    glFlush();
+}
+
+// Reflection transformation
+void reflect() {
+    cout << "Enter reflection type (1: X-axis, 2: Y-axis, 3: Origin): ";
+    int type;
+    cin >> type;
+
+    matrixInit(B);
+    if (type == 1) { // Reflect across X-axis
+        B[1][1] = -1;
+    } else if (type == 2) { // Reflect across Y-axis
+        B[0][0] = -1;
+    } else if (type == 3) { // Reflect across origin
+        B[0][0] = -1;
+        B[1][1] = -1;
+    } else {
+        cout << "Invalid reflection type. Using X-axis reflection." << endl;
+        B[1][1] = -1;
     }
-    if(item == 6){
-        float shx, shy;
-        cout << "Enter shearing factors (shx shy): ";
-        cin >> shx >> shy;
-    
-        // Apply shearing to each side of the square
-        Shear(-100, 100, 100, 100, shx, shy);    // Top edge
-        Shear(100, 100, 100, -100, shx, shy);    // Right edge
-        Shear(100, -100, -100, -100, shx, shy);  // Bottom edge
-        Shear(-100, -100, -100, 100, shx, shy);  // Left edge
-    }
-    
-    if(item == 7){
+
+    glClear(GL_COLOR_BUFFER_BIT);
+    drawAxes();
+    plotFigure(A, false); // Original square in green
+    matrixClear(C, N);
+    multiply(A, B, C);
+    plotFigure(C, true); // Transformed square in blue
+    glFlush();
+}
+
+// Display callback
+void myDisplay() {
+    glClear(GL_COLOR_BUFFER_BIT);
+    drawAxes();
+    matrixInit(B);
+    matrixClear(C, N);
+    plotFigure(A, false);
+    glFlush();
+}
+
+// Keyboard callback to exit on 'Esc'
+void keyboard(unsigned char key, int x, int y) {
+    if (key == 27) { // ASCII code for Esc
         exit(0);
     }
-    glFlush();
 }
 
-void myinit(){
-    glClearColor(1,1,1,1);
-    glColor3f(0,0,0);
-    glMatrixMode(GL_PROJECTION);
-    glLoadIdentity();
-    glPointSize(4.0);
-    gluOrtho2D(-w/2,w/2,-h/2,h/2);
+// Menu handler
+void handleMenu(int option) {
+    switch (option) {
+        case 1: translate(); break;
+        case 2: scale(); break;
+        case 3: rotate(); break;
+        case 4: rotate(); break; // Placeholder for rotate about point
+        case 5: shear(); break;
+        case 6: reflect(); break;
+        default: cout << "Invalid Option" << endl;
+    }
 }
 
-void menuInit(){
-    glutCreateMenu(menu);
-    glutAddMenuEntry("Translation",1);
-    glutAddMenuEntry("Scaling" , 2);
-    glutAddMenuEntry("Rotation",8);
-    glutAddMenuEntry("Rotation Pt",3);
-    glutAddMenuEntry("Scaling Pt",4);
-    glutAddMenuEntry("Reflection",5);
-    glutAddMenuEntry("Shear",6);
-    glutAddMenuEntry("Exit",7);
+int main(int argc, char **argv) {
+    glutInit(&argc, argv);
+    glutInitDisplayMode(GLUT_SINGLE | GLUT_RGB);
+    glutInitWindowSize(w, h);
+    glutInitWindowPosition(100, 150);
+
+    // Create window and check for errors
+    glutCreateWindow("Square Transformations");
+    if (!glutGetWindow()) {
+        cerr << "Error: Failed to create GLUT window" << endl;
+        return 1;
+    }
+
+    myInit();
+    glutDisplayFunc(myDisplay);
+    glutKeyboardFunc(keyboard);
+
+    // Menu setup
+    glutCreateMenu(handleMenu);
+    glutAddMenuEntry("Translate", 1);
+    glutAddMenuEntry("Scale", 2);
+    glutAddMenuEntry("Rotate", 3);
+    glutAddMenuEntry("Rotate about point", 4);
+    glutAddMenuEntry("Shear", 5);
+    glutAddMenuEntry("Reflection", 6);
     glutAttachMenu(GLUT_RIGHT_BUTTON);
-}
 
-int main(int v , char** c){
-    glutInit(&v , c);
-    glutCreateWindow("Transformation");
-    glutInitWindowSize(w,h);
-    glutInitDisplayMode(GLUT_RGB | GLUT_SINGLE);
-    glutDisplayFunc(Display);
-    menuInit();
-    myinit();
-    glutMainLoop();
-    return 0;
+    try {
+        glutMainLoop();
+    } catch (const std::exception& e) {
+        cerr << "Error in GLUT main loop: " << e.what() << endl;
+        return 1;
+    }
+
+   return 0;
 }
