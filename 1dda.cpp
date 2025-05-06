@@ -30,20 +30,13 @@ void DDA(int x1 , int y1 , int x2 , int y2){
     float x = x1 + 0.5*Sign(Xinc);
     float y = y1 + 0.5*Sign(Yinc);
     
-    int dashedLength = 5;
-    int gapLength = 5 ;
-    int count = 0;
+    
 
     glBegin(GL_POINTS);
     for(int i =  0 ; i <= length ; i++ ){
-        if(count < dashedLength){
-            glVertex2i(floor(x) , floor(y));
-        }
-        count ++;
-
-        if(count == dashedLength + gapLength){
-            count = 0;
-        }
+        
+        glVertex2i(floor(x) , floor(y));
+        
         
         x = x + Xinc;
         y = y + Yinc;
@@ -73,6 +66,7 @@ void myInit(){
 }
 
 int  main(int c , char** v){
+    
     glutInit(&c , v);
     glutInitWindowSize(500,500);
     glutCreateWindow("DDA");
